@@ -3,6 +3,8 @@ VERSION_MAJOR=0
 VERSION_MINOR=0
 
 CXX=g++
+LD=g++
+
 CONFIG = -D CORE_CONFIG \
 	-D PROJECT_NAME=\"${NAME}\"\
 	-D VERSION_MAJOR=${VERSION_MAJOR} \
@@ -10,28 +12,31 @@ CONFIG = -D CORE_CONFIG \
 	-D WINDOW_WIDTH=800 \
 	-D WINDOW_HEIGHT=600 \
 	-D VERBOSE_UNHANDLED_EVENTS \
-	-D USE_SDL2_IMAGE \
+	#-D USE_SDL2_IMAGE \
 	#-D USE_SDL2_NET \
 	#-D USE_SDL2_TTF
 
 __CXXFLAGS=-Og -g -std=c++17 \
 	-Wall -Wextra -pedantic \
-	-pthread \
 	-lSDL2 \
-	-lSDL2_image \
+	#-lSDL2_image \
 	#-lSDL2_ttf \
 	#-lSDL2_mixer \
-	#-lSDL2_net
+	#-lSDL2_net \
+	#-pthread \
+	#
 
-LDXX=ldd
+LDFLAGS = ${__CXXFLAGS} \
+	#
 
 
 IDIR=src
 SDIR=src
 BDIR=bin
-ODIR=obj
-DDIR=dep
+ODIR=.obj
+DDIR=.dep
 ASSETS_DIR=assets
+HOOKS_DIR=hooks
 
 _CXXFLAGS = ${__CXXFLAGS} ${CONFIG} -I${IDIR} -I${ODIR}/${IDIR} ${CXXFLAGS}
 SRC = $(shell find ${SDIR} -type f -name '*.cpp' -o -name ".backup" -prune -type f)
@@ -56,7 +61,6 @@ depend: ${DEP}
 include ${DEP}
 
 ${OBJ}: ${ODIR}/%.o: ${SDIR}/%.cpp makefile
-	# mkdir -p ${ODIR}
 	echo "Compiling $@"
 	mkdir -p $$(dirname $@)
 	${CXX} -c -o $@ $< ${_CXXFLAGS}
@@ -64,7 +68,7 @@ ${OBJ}: ${ODIR}/%.o: ${SDIR}/%.cpp makefile
 ${BDIR}/${NAME}: ${OBJ}
 	mkdir -p ${BDIR}
 	echo "Linking ${NAME}"
-	$(CXX) -o $@ ${OBJ} ${_CXXFLAGS}
+	$(LD) -o $@ ${OBJ} ${LDFLAGS}
 
 clean:
 	echo "Cleaning build files"
@@ -74,6 +78,10 @@ clean:
 run: build
 	echo "Running ${NAME}"
 	cd ${BDIR} && ./${NAME} $(ARGS)
+	if [ -f "${BDIR}/${HOOKS_DIR}/post_run.sh" ]; then \
+		echo "Executing ${HOOKS_DIR}/post_run.sh"; \
+		./${HOOKS_DIR}/post_run.sh; \
+	fi
 
 ctags: ${SRC}
 	echo "Generating ctags"
@@ -89,8 +97,8 @@ ${BDIR}/${ASSETS_DIR}/STAMP: ${ASSETS}
 	cp -r "${ASSETS_DIR}" "${BDIR}/${ASSETS_DIR}"
 	echo "Preparing assets"
 	cd ${BDIR}/${ASSETS_DIR}
-	if [ -f "./prepare.sh" ]; then \
-		./prepare.sh; \
+	if [ -f "${BDIR}/${ASSETS_DIR}/prepare.sh" ]; then \
+		${BDIR}/${ASSETS_DIR}/prepare.sh; \
 	fi
 	touch $@
 
